@@ -1,27 +1,112 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Mono:wght@400;500&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Tła */
+  --bg-app: #F0EDE6;
+  --bg-surface: #FAFAF8;
+  --bg-card: #FFFFFF;
+  --bg-sidebar: #F5F3EE;
+  --bg-input: #FFFFFF;
+
+  /* Granice */
+  --border-subtle: #EAE8E2;
+  --border-default: #D8D5CE;
+  --border-input: #C8C5BE;
+  --border-focus: #4A7FF8;
+
+  /* Tekst */
+  --text-primary: #1A1916;
+  --text-secondary: #3A3834;
+  --text-muted: #6B6860;
+  --text-placeholder: #9A9890;
+
+  /* Akcenty */
+  --blue: #4A7FF8;
+  --blue-pale: #EEF3FF;
+  --blue-border: #C8D8FC;
+
+  --coral: #FF7648;
+  --coral-pale: #FFF0EB;
+  --coral-border: #FFC4B0;
+
+  --amber: #FFC757;
+  --amber-pale: #FFF8E8;
+  --amber-border: #FFE4A0;
+
+  /* Scoring */
+  --score-high: #4A7FF8;
+  --score-mid: #FFC757;
+  --score-low: #FF7648;
+
+  /* Persona avatary */
+  --persona-1: #4A7FF8;
+  --persona-2: #FF7648;
+  --persona-3: #FFC757;
+  --persona-4: #9A7ABA;
+  --persona-5: #5B9E6A;
+  --persona-6: #BA7A5A;
+
+  /* Workspace dots */
+  --ws-kombini: #4A7FF8;
+  --ws-mv: #5B9E6A;
+  --ws-content: #9A7ABA;
+  --ws-cyrulicy: #BA7A5A;
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
 }
 
+html,
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
+
+@keyframes auraPulse {
+  0%, 100% { opacity: 0.15; transform: scale(0.95); }
+  50%       { opacity: 0.3;  transform: scale(1.05); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; }
+  50%       { opacity: 0.7; }
+}
+
+.page-enter {
+  animation: fadeUp 0.35s ease-out;
+}
+
+.score-fill {
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.aura-pulse-1 { animation: auraPulse 1.5s ease-in-out 0s infinite; }
+.aura-pulse-2 { animation: auraPulse 1.5s ease-in-out 0.4s infinite; }
+.aura-pulse-3 { animation: auraPulse 1.5s ease-in-out 0.8s infinite; }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-input); }
