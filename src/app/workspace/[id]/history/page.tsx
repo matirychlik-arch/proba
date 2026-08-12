@@ -9,6 +9,7 @@ import { getScoreColor } from '@/lib/persona-colors'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import AnalysisResults from '@/components/AnalysisResults'
+import RealOutcomeCard from '@/components/RealOutcomeCard'
 import { useToast } from '@/components/ui/Toast'
 
 const MODES: AnalysisMode[] = ['kreacja', 'hook', 'cena', 'kampania', 'content', 'decyzja']
@@ -168,7 +169,9 @@ function HistoryPageInner() {
                       {a.input}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                      {MODE_LABELS[a.mode]} · {formatDate(a.createdAt)} · {a.selectedPersonaIds.length} person
+                      {MODE_LABELS[a.mode]} · {a.depth === 'rada' ? '🧠 rada person · ' : ''}
+                      {formatDate(a.createdAt)} · {a.selectedPersonaIds.length} person
+                      {a.realOutcome ? ' · ✓ realny wynik zapisany' : ''}
                     </div>
                   </div>
                   <span
@@ -193,6 +196,10 @@ function HistoryPageInner() {
                     personas={analysisPersonas}
                     result={a.result}
                     createdAt={a.createdAt}
+                  />
+                  <RealOutcomeCard
+                    analysis={a}
+                    onSaved={() => setAnalyses(getAnalysesForWorkspace(id))}
                   />
                   <div style={{ marginTop: 12 }}>
                     <Button variant="ghost" onClick={() => handleDelete(a.id)} style={{ color: 'var(--coral)' }}>

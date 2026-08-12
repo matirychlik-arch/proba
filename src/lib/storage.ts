@@ -97,6 +97,15 @@ export function saveAnalysis(analysis: Analysis): { pruned: boolean } {
   return { pruned }
 }
 
+export function updateAnalysis(id: string, patch: Partial<Analysis>): void {
+  if (!isClient()) return
+  const all = getAllAnalyses()
+  const idx = all.findIndex((a) => a.id === id)
+  if (idx < 0) return
+  all[idx] = { ...all[idx], ...patch }
+  localStorage.setItem(KEYS.ANALYSES, JSON.stringify(all))
+}
+
 export function deleteAnalysis(id: string): void {
   if (!isClient()) return
   const all = getAllAnalyses().filter((a) => a.id !== id)

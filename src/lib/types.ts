@@ -42,17 +42,45 @@ export interface AnalysisResult {
   hiddenOpportunity: string
   personas: PersonaResult[]
   topActions: string[]
+  /** Tylko depth='rada': reakcja zimnego klienta (zero kontekstu marki). */
+  coldClient?: PersonaResult & { name: string }
+  /** Tylko depth='rada': rewizje po rundzie dyskusji. */
+  socialShifts?: SocialShift[]
+}
+
+/** Wersja promptów — podbijać przy każdej zmianie promptów systemowych.
+ *  Bez tego pętla walidacji porównuje różne systemy i nic nie mierzy. */
+export const PROMPT_VERSION = '1.1.0'
+
+export type AnalysisDepth = 'szybka' | 'rada'
+
+/** "Co się faktycznie stało" — pętla walidacji (falsyfikacja, nie predykcja). */
+export interface RealOutcome {
+  note: string          // co się stało po publikacji (zasięgi, sprzedaż, reakcje)
+  success?: boolean     // czy Mat uznaje to za sukces
+  recordedAt: string
+}
+
+/** Rewizja opinii persony po rundzie dyskusji (symulacja dyskusji — tryb "show"). */
+export interface SocialShift {
+  personaId: string
+  scoreBefore: number
+  scoreAfter: number
+  reason: string        // 1 zdanie dlaczego zmieniła/podtrzymała zdanie
 }
 
 export interface Analysis {
   id: string
   workspaceId: string
   mode: AnalysisMode
+  depth?: AnalysisDepth // brak = 'szybka' (analizy sprzed v1.1)
   input: string
   imageBase64?: string
   context?: string
   selectedPersonaIds: string[]
   result: AnalysisResult
+  promptVersion?: string
+  realOutcome?: RealOutcome
   createdAt: string
 }
 

@@ -929,6 +929,130 @@ Używaj `stream: true` w API call. Wyniki parsuj inkrementalnie i wyświetlaj w 
 
 ---
 
+## POZIOMY ANALIZY (v1.1 — sierpień 2026)
+
+> Decyzja architektoniczna podjęta po analizie MiroShark (github.com/MiroShark/MiroShark)
+> i MiroFish (github.com/666ghj/MiroFish) oraz obradach AI Council.
+> Oba projekty referencyjne są na licencji AGPL-3.0 — **inspirujemy się wzorcami
+> architektonicznymi, NIGDY nie kopiujemy kodu** (ryzyko licencyjne dla komercjalizacji).
+
+Proba ma dwa jawnie rozdzielone joby:
+- **(a) Narzędzie diagnostyczne** — znajduje słabe punkty kreacji PRZED publikacją (falsyfikacja, nie wyrocznia)
+- **(b) Generator contentu** — wyniki są materiałem do filmów Mata
+
+To rozróżnienie determinuje etykiety w UI i komunikację (patrz: STRATEGIA KOMUNIKACJI).
+
+### ⚡ Poziom 1 — Szybka analiza (istnieje)
+
+Jeden strzał do Claude: wszystkie persony w jednym prompcie, streaming JSON, ~30 sek, grosze.
+Do codziennego testu hooka przed nagraniem. Bez zmian.
+
+**Znane ograniczenie (nazywać uczciwie):** persony symulowane w jednym kontekście są
+skorelowane — jeden model gra wszystkie naraz. Poziom 2 istnieje właśnie po to.
+
+### 🧠 Poziom 2 — Rada person (implementacja TERAZ)
+
+Wzorzec: LLM Council (Karpathy). Każda persona = OSOBNE wywołanie API z własnym kontekstem.
+
+**Elementy (tylko te — reszta odrzucona przez Council jako dekoracja):**
+1. **Niezależne reakcje** — każda persona osobny call, nie widzi innych person. Usuwa cross-kontaminację.
+2. **Zimny klient** 🧊 — dodatkowa pseudo-persona która dostaje WYŁĄCZNIE kreację/input,
+   ZERO kontekstu biznesu, person i marki. Łapie klątwę wiedzy ("nie wiem co to KOMBINI").
+   Najwyżej oceniony element całego planu — implementować pierwszorzędnie.
+3. **Runda dyskusji (social proof)** — persony widzą skrócone opinie pozostałych i mogą
+   zrewidować ocenę. W UI etykieta: "symulacja dyskusji" — NIE "dowód rynkowy".
+   Zmiana zdania persony to artefakt symulacji, nie nauka. Ale jest świetnym contentem.
+4. **Synteza stratega** — jeden call zbiera wszystko: gdzie persony zgodne, gdzie się
+   rozjeżdżają, finalne score'y i rekomendacje.
+
+**Architektura wykonania (KRYTYCZNE):**
+- Orkiestracja **z przeglądarki**, nie z serverless — omija timeout Vercela (60-120s)
+  i pasuje do modelu "klucz API u użytkownika". Klient robi sekwencję fetchy do lekkich
+  API routes; każdy route to JEDEN call do Claude.
+- Fazy: reakcje person równolegle (N+1 calli z zimnym klientem) → runda dyskusji
+  równolegle (N calli) → synteza (1 call). Razem 2N+2 (~10 dla 4 person), 2-3 min.
+- Prompt caching (cache_control ephemeral) na wspólnym system prompcie — te same
+  opisy biznesu idą w N calli, bez cache płacimy N razy.
+- Rate limity: świeży klucz Tier 1 ma niskie RPM — ograniczyć równoległość do 4-5
+  jednoczesnych wywołań, resztę kolejkować.
+- Czas oczekiwania to dramaturgia: UI pokazuje "obrady rady" (avatary person zapalają
+  się po kolei, status per persona). Pasek "trwa obrada rady" filmuje się sam.
+
+### 🌊 Poziom 3 — Symulacja populacji (NIE TERAZ)
+
+Wzorzec koncepcyjny: MiroShark (fazowy pipeline: ontologia → populacja → symulacja
+w rundach → raport; wstrzykiwanie wydarzeń; fork timeline'ów). NIE MiroFish (wymaga
+zewnętrznej pamięci Zep Cloud i frameworka OASIS — architektura dla zespołu, nie solo).
+
+**Status: zamrożony jako feature.** Warunki odblokowania: (1) Poziom 2 działa i jest
+używany, (2) pojawia się płacący klient który o to prosi, (3) decyzja o backendzie
+(kolejka zadań, baza — to inny produkt architektonicznie).
+
+**Dozwolone wcześniej: jednorazowy event contentowy** — półręczna symulacja 500-1000
+agentów lokalnym skryptem (Haiku + prompt caching ≈ 20-60 zł/przebieg, ~20+ min na
+Tier 1), nagrana jako film. Wartość: dowód że Proba to nie zabawka + materiał flagowy.
+
+**Uczciwa fizyka symulacji (do komunikacji i raportów):** N agentów tego samego modelu
+to NIE N niezależnych opinii — błędy są skorelowane ("problem 11 kostiumów"). Realna
+wartość dużej populacji to ROZKŁAD reakcji (ile % entuzjastów, gdzie pęka przekaz,
+jak propaguje się opinia) i dynamika — nie precyzja pojedynczej predykcji.
+
+---
+
+## PĘTLA WALIDACJI (implementacja PRZED Poziomem 2)
+
+Pierwszy krok z werdyktu Council — dzień pracy, zero nowej architektury:
+
+1. **Pole `realOutcome` w Analysis** — "co się faktycznie stało": notatka + opcjonalny
+   wynik liczbowy + data. Edytowalne z poziomu historii analiz.
+2. **Wypełnić wstecznie** dla 5-10 starych kreacji o znanych wynikach (Mobile Vikings,
+   własne hooki) — odpowiada na pytanie "czy Poziom 1 trafia lepiej niż rzut monetą".
+3. **Wersjonowanie promptów** — stała `PROMPT_VERSION` zapisywana w każdej analizie.
+   Bez zamrożenia wersji pętla porównuje różne systemy i nic nie mierzy.
+4. **Rama: falsyfikacja, nie predykcja.** Przy kilkunastu zaszumionych punktach danych
+   miesięcznie nie zbudujemy kalibracji statystycznej — pętla służy do: (a) wykrycia
+   systematycznej ślepoty narzędzia, (b) budowy assetu danych nie do sklonowania,
+   (c) uczciwej odpowiedzi dla pierwszego płacącego klienta.
+5. **Publiczne zakłady jako format** — film "Proba mówi 7/10, sprawdzimy za tydzień"
+   zamienia walidację w serial i buduje wiarygodność na oczach widzów.
+
+---
+
+## STRATEGIA KOMUNIKACJI — CLAIM FLAGOWY I ZASADY UCZCIWOŚCI
+
+### Claim flagowy (hak marketingowy)
+
+Najmocniejszy przekaz Proby (i źródło chwytliwości MiroShark/MiroFish):
+
+> **"Zamknięty świat z 1000 postaci. Każda ma swoje życie, budżet i humory.
+> Wpuszczam tam twoją reklamę i patrzę, co się stanie."**
+
+Struktura "halo product": marketing opowiada o Poziomie 3 (spektakl), produkt
+codzienny to Poziom 1/2 (sedan). Jak concept car w salonie — przyciąga wizja,
+kupuje się narzędzie.
+
+### Zasady uczciwości (NIENEGOCJOWALNE)
+
+1. **Czasownik: "oceni i pokaże dynamikę", NIGDY "przewidzi sukces".**
+   "1000 postaci oceni twoją kreację i pokaże ci, jak umiera albo jak się niesie" —
+   równie chwytliwe, a nie składa obietnicy nie do obrony. Cyfrowa grupa fokusowa
+   na sterydach, nie szklana kula. Sprzedawanie pewności bez kalibracji = horoskop
+   w ładnym UI = spalony kanał (jedyne aktywo dystrybucyjne).
+2. **Nigdy nie zawyżać liczby agentów.** Puściłeś 100 — mówisz 100. Widownia
+   buildera-w-publicznym wybacza wszystko oprócz ściemy.
+3. **Tryb "show" vs tryb "predykcja" jawnie rozdzielone.** Runda dyskusji person to
+   "symulacja dyskusji" (show). Score'y i ryzyka to "diagnoza" (falsyfikacja).
+   W UI i w filmach te etykiety nie mogą się mieszać.
+4. **Publiczna kalibracja zamiast twierdzeń o trafności.** Dopóki nie ma serii
+   "symulacja przewidziała X, stało się X" — nie twierdzimy, pokazujemy i sprawdzamy
+   na oczach widzów.
+5. **Sprzedawać pytaniami, nie mechaniką** (na poziomie UI): "Sprawdź pomysł" /
+   "Znajdź słabe punkty" / "Zobacz, jak się przyjmie" — klient nie wie, czy jego
+   problem to problem "za 30 sekund" czy "za 3 minuty". Liczba agentów i minut to
+   hak w marketingu, nie nawigacja w produkcie.
+
+---
+
 ## STORAGE — MVP z localStorage
 
 ```typescript

@@ -8,19 +8,23 @@ import {
   Persona,
   Analysis,
   AnalysisMode,
+  AnalysisDepth,
   MODE_LABELS,
   MODE_ICONS,
   MODE_PLACEHOLDERS,
+  PROMPT_VERSION,
 } from '@/lib/types'
 import { getWorkspace, getApiKey, saveAnalysis } from '@/lib/storage'
 import { resizeImage, validateImageFile } from '@/lib/image'
 import { parsePartialJson } from '@/lib/partial-json'
+import { runCouncil, CouncilProgress } from '@/lib/council'
 import Card from '@/components/ui/Card'
 import Label from '@/components/ui/Label'
 import Button from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/Input'
 import PersonaAvatar from '@/components/PersonaAvatar'
 import LoadingPersonas from '@/components/LoadingPersonas'
+import CouncilProgressView from '@/components/CouncilProgress'
 import AnalysisResults, { PartialResult } from '@/components/AnalysisResults'
 import { useToast } from '@/components/ui/Toast'
 
@@ -43,8 +47,10 @@ export default function AnalyzeClient() {
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
+  const [depth, setDepth] = useState<AnalysisDepth>('szybka')
   const [running, setRunning] = useState(false)
   const [partial, setPartial] = useState<PartialResult | null>(null)
+  const [councilProgress, setCouncilProgress] = useState<CouncilProgress | null>(null)
   const [saved, setSaved] = useState(false)
   const [showApiModal, setShowApiModal] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -107,7 +113,13 @@ export default function AnalyzeClient() {
 
     setRunning(true)
     setPartial(null)
+    setCouncilProgress(null)
     setSaved(false)
+
+    if (depth === 'rada') {
+      await runRadaAnalysis(apiKey)
+      return
+    }
 
     try {
       const res = await fetch('/api/analyze', {
@@ -163,22 +175,7 @@ export default function AnalyzeClient() {
       const final = parsePartialJson(accumulated) as PartialResult | null
       if (final && final.overallScore != null && final.personas) {
         setPartial(final)
-        const analysis: Analysis = {
-          id: `a-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
-          workspaceId: id,
-          mode,
-          input: input.trim(),
-          imageBase64: imageBase64 || undefined,
-          context: context.trim() || undefined,
-          selectedPersonaIds: selectedIds,
-          result: final as Required<PartialResult>,
-          createdAt: new Date().toISOString(),
-        }
-        const { pruned } = saveAnalysis(analysis)
-        setSaved(true)
-        if (pruned) {
-          toast('Osiągnięto limit 50 analiz — usunięto najstarszą', 'info')
-        }
+        persistResult(final, 'szybka')
       } else {
         toast('Analiza zwróciła niepełny wynik — spróbuj ponownie', 'error')
       }
@@ -186,6 +183,50 @@ export default function AnalyzeClient() {
       toast('Błąd sieci podczas analizy — sprawdź połączenie', 'error')
     } finally {
       setRunning(false)
+    }
+  }
+
+  const persistResult = (final: PartialResult, analysisDepth: AnalysisDepth) => {
+    const analysis: Analysis = {
+      id: `a-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+      workspaceId: id,
+      mode,
+      depth: analysisDepth,
+      input: input.trim(),
+      imageBase64: imageBase64 || undefined,
+      context: context.trim() || undefined,
+      selectedPersonaIds: selectedIds,
+      result: final as Required<PartialResult>,
+      promptVersion: PROMPT_VERSION,
+      createdAt: new Date().toISOString(),
+    }
+    const { pruned } = saveAnalysis(analysis)
+    setSaved(true)
+    if (pruned) {
+      toast('Osiągnięto limit 50 analiz — usunięto najstarszą', 'info')
+    }
+  }
+
+  // Rada person — orkiestracja z przeglądarki (2N+2 wywołań, ~2-3 min).
+  const runRadaAnalysis = async (apiKey: string) => {
+    try {
+      const result = await runCouncil({
+        apiKey,
+        mode,
+        input: input.trim(),
+        context: context.trim() || undefined,
+        imageBase64: imageBase64 || undefined,
+        businessDescription: workspace!.description,
+        personas: selectedPersonas,
+        onProgress: setCouncilProgress,
+      })
+      setPartial(result)
+      persistResult(result, 'rada')
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd podczas obrad rady', 'error')
+    } finally {
+      setRunning(false)
+      setCouncilProgress(null)
     }
   }
 
@@ -263,6 +304,54 @@ export default function AnalyzeClient() {
                     }}
                   >
                     {MODE_ICONS[m]} {MODE_LABELS[m]}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Głębokość analizy */}
+          <div>
+            <Label style={{ marginBottom: 8 }}>Głębokość</Label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {(
+                [
+                  {
+                    key: 'szybka' as AnalysisDepth,
+                    icon: '⚡',
+                    title: 'Szybka analiza',
+                    desc: 'Sprawdź pomysł w 30 sekund',
+                  },
+                  {
+                    key: 'rada' as AnalysisDepth,
+                    icon: '🧠',
+                    title: 'Rada person',
+                    desc: 'Znajdź słabe punkty — każda persona osobno + zimny klient, 2-3 min',
+                  },
+                ]
+              ).map((d) => {
+                const active = depth === d.key
+                return (
+                  <button
+                    key={d.key}
+                    onClick={() => setDepth(d.key)}
+                    disabled={running}
+                    style={{
+                      textAlign: 'left',
+                      background: active ? 'var(--blue-pale)' : 'white',
+                      border: `0.5px solid ${active ? 'var(--blue-border)' : 'var(--border-default)'}`,
+                      borderRadius: 'var(--radius-md)',
+                      padding: '10px 14px',
+                      cursor: 'pointer',
+                      fontFamily: "'DM Sans', sans-serif",
+                    }}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 600, color: active ? 'var(--blue)' : 'var(--text-primary)' }}>
+                      {d.icon} {d.title}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.4 }}>
+                      {d.desc}
+                    </div>
                   </button>
                 )
               })}
@@ -425,7 +514,13 @@ export default function AnalyzeClient() {
 
           {/* RUN */}
           <Button fullWidth onClick={runAnalysis} disabled={running}>
-            {running ? 'Symulacja w toku...' : '⟳ Uruchom symulację'}
+            {running
+              ? depth === 'rada'
+                ? 'Trwa obrada rady...'
+                : 'Symulacja w toku...'
+              : depth === 'rada'
+                ? '⟳ Zwołaj radę person'
+                : '⟳ Uruchom symulację'}
           </Button>
         </div>
 
@@ -434,7 +529,11 @@ export default function AnalyzeClient() {
           <div>
             {running && !hasResults ? (
               <Card variant="surface">
-                <LoadingPersonas />
+                {councilProgress ? (
+                  <CouncilProgressView personas={selectedPersonas} progress={councilProgress} />
+                ) : (
+                  <LoadingPersonas />
+                )}
               </Card>
             ) : partial ? (
               <>

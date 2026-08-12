@@ -1,6 +1,7 @@
 'use client'
 
 import { AnalysisMode, AnalysisResult, Persona, MODE_LABELS } from '@/lib/types'
+import { getScoreColor } from '@/lib/persona-colors'
 import Card from './ui/Card'
 import Label from './ui/Label'
 import Aura from './Aura'
@@ -150,6 +151,126 @@ export default function AnalysisResults({
             )
           })}
         </div>
+      )}
+
+      {/* Zimny klient (tylko depth='rada') */}
+      {result.coldClient && result.coldClient.score != null && (
+        <div
+          style={{
+            background: 'var(--bg-card)',
+            border: '0.5px solid var(--blue-border)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '16px 20px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                background: '#EDE9E1',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 16,
+                flexShrink: 0,
+              }}
+            >
+              🧊
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.02em' }}>
+                Zimny klient
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Nie zna Twojej marki — widział tylko kreację
+              </div>
+            </div>
+            <span
+              style={{
+                fontSize: 20,
+                fontWeight: 600,
+                letterSpacing: '-0.03em',
+                color: getScoreColor(result.coldClient.score),
+              }}
+            >
+              {result.coldClient.score}
+            </span>
+          </div>
+          <p style={{ fontSize: 14, lineHeight: 1.65, color: 'var(--text-secondary)' }}>
+            {result.coldClient.reaction}
+          </p>
+          {result.coldClient.suggestion && (
+            <div
+              style={{
+                marginTop: 10,
+                background: 'var(--blue-pale)',
+                borderLeft: '2px solid var(--blue)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '10px 14px',
+                fontSize: 13,
+                lineHeight: 1.6,
+                color: 'var(--text-secondary)',
+              }}
+            >
+              {result.coldClient.suggestion}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Runda dyskusji (tylko depth='rada') — jawnie oznaczona jako symulacja */}
+      {result.socialShifts && result.socialShifts.length > 0 && (
+        <Card style={{ borderColor: 'var(--border-subtle)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+            <Label>Runda dyskusji</Label>
+            <span
+              style={{
+                fontFamily: "'DM Mono', monospace",
+                fontSize: 9,
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                color: 'var(--text-placeholder)',
+                background: 'var(--bg-app)',
+                borderRadius: 'var(--radius-full)',
+                padding: '3px 10px',
+              }}
+            >
+              symulacja dyskusji
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {result.socialShifts.map((s) => {
+              const persona = personaById.get(s.personaId)
+              const changed = s.scoreAfter !== s.scoreBefore
+              return (
+                <div key={s.personaId} style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, flexShrink: 0, minWidth: 70 }}>
+                    <HighlightedText text={persona?.name ?? '?'} personas={personas} />
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: "'DM Mono', monospace",
+                      fontSize: 12,
+                      flexShrink: 0,
+                      color: changed
+                        ? s.scoreAfter > s.scoreBefore
+                          ? 'var(--blue)'
+                          : 'var(--coral)'
+                        : 'var(--text-muted)',
+                    }}
+                  >
+                    {changed ? `${s.scoreBefore}→${s.scoreAfter}` : `${s.scoreBefore} ·`}
+                  </span>
+                  <span style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--text-secondary)' }}>
+                    {s.reason}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </Card>
       )}
 
       {/* Blok 6 — Top 3 rekomendacje */}
