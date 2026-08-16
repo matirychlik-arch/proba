@@ -24,12 +24,16 @@ Pierwsze uruchomienie buduje aplikację (2–3 min, dostaniesz powiadomienie sys
 kolejne starty są natychmiastowe. Ponowne kliknięcie, gdy Proba już działa, po prostu
 otwiera przeglądarkę.
 
+**Chcesz mieć Probę w Aplikacjach?** Przeciągnij (lub skopiuj) `Proba.app` do
+`/Applications` — launcher sam odnajdzie folder projektu: sprawdza typowe lokalizacje
+klonu (`~/proba`, `~/Documents/proba`, `~/Desktop/proba`…), a jeśli trzymasz go gdzie
+indziej, przy pierwszym starcie poprosi o wskazanie folderu i zapamięta wybór.
+
 **Zatrzymanie:** Ustawienia Proby → „⏻ Zatrzymaj lokalny serwer".
 Logi: `~/Library/Logs/Proba.log`.
 
-> `Proba.app` musi zostać w folderze projektu (obok `package.json`) — możesz przeciągnąć
-> ją do Docku dla wygody. Alternatywa terminalowa: `./Proba.command`.
 > Jeśli macOS zablokuje pierwszy start (Gatekeeper): prawy przycisk → **Otwórz** → **Otwórz**.
+> Alternatywa terminalowa: `./Proba.command`.
 
 **Ograniczenia trybu CLI:** brak obsługi obrazów w analizach (wymaga klucza API),
 wynik Szybkiej analizy pojawia się w całości po ~20–30 s (bez streamingu), Rada person
