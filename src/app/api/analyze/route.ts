@@ -134,7 +134,11 @@ export async function POST(req: NextRequest) {
   try {
     const stream = anthropic.messages.stream({
       model: CLAUDE_MODEL,
-      max_tokens: 8192,
+      max_tokens: 12000,
+      // Szybka analiza buduje się na oczach użytkownika — myślenie dałoby długą
+      // pauzę przed pierwszym tokenem i zjadło budżet dzielony z odpowiedzią.
+      thinking: { type: 'disabled' },
+      output_config: { effort: 'medium' },
       system: buildSystemPrompt(businessDescription ?? '', JSON.stringify(personas, null, 2)),
       messages: [{ role: 'user', content: userContent }],
     })

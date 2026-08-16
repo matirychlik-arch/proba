@@ -43,7 +43,9 @@ export async function POST(req: NextRequest) {
       apiKey,
       system: SYSTEM_PROMPT,
       userText: `Opis biznesu: ${description}\nBranża: ${industry ?? 'nie podano'}\nMiasto: ${city ?? 'nie podano'}`,
-      maxTokens: 4096,
+      maxTokens: 8192,
+      thinking: 'adaptive',
+      effort: 'medium',
     })
 
     const parsed = extractJson<{ personas?: unknown[] }>(text)

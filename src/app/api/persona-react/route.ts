@@ -64,7 +64,11 @@ ${RESULT_FORMAT}`
       system,
       userText,
       imageBase64,
-      maxTokens: 1024,
+      // Rada nie streamuje — UI pokazuje obrady, więc myślenie kosztuje tylko czas,
+      // a wchodzenie w skórę persony na nim zyskuje. Budżet dzielony z odpowiedzią.
+      maxTokens: 4096,
+      thinking: 'adaptive',
+      effort: 'medium',
       cacheSystem: !cold,
     })
     const parsed = extractJson(text)

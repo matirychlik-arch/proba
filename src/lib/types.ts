@@ -50,7 +50,7 @@ export interface AnalysisResult {
 
 /** Wersja promptów — podbijać przy każdej zmianie promptów systemowych.
  *  Bez tego pętla walidacji porównuje różne systemy i nic nie mierzy. */
-export const PROMPT_VERSION = '1.1.0'
+export const PROMPT_VERSION = '1.2.0-sonnet5'
 
 export type AnalysisDepth = 'szybka' | 'rada'
 

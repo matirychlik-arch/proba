@@ -18,7 +18,7 @@ export async function runClaudeCli(system: string, userText: string): Promise<st
     const args = [
       '-p',
       '--output-format', 'json',
-      '--model', 'sonnet',
+      '--model', 'claude-sonnet-5',
       '--append-system-prompt', system,
     ]
     const child = spawn('claude', args, {

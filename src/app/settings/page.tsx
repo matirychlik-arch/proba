@@ -134,7 +134,7 @@ export default function SettingsPage() {
             width: '100%',
           }}
         >
-          <option>claude-sonnet-4-20250514</option>
+          <option>claude-sonnet-5</option>
         </select>
         <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 10 }}>
           W MVP dostępny jest jeden model. Więcej opcji pojawi się w przyszłych wersjach.

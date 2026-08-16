@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { isCliMode, runClaudeCli } from './claude-cli'
 
-export const CLAUDE_MODEL = 'claude-sonnet-4-20250514'
+export const CLAUDE_MODEL = 'claude-sonnet-5'
 export { isCliMode }
 
 export function resolveApiKey(req: NextRequest): string | null {
@@ -33,6 +33,10 @@ interface ClaudeTextOptions {
   maxTokens: number
   /** Cache'uj system prompt (opłaca się gdy ten sam system idzie w N calli). */
   cacheSystem?: boolean
+  /** Na Sonnet 5 myślenie jest domyślnie włączone i liczy się do max_tokens —
+   *  ustawiamy je jawnie na każdej trasie. */
+  thinking?: 'adaptive' | 'disabled'
+  effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 }
 
 /**
@@ -70,6 +74,8 @@ export async function claudeText(opts: ClaudeTextOptions): Promise<string> {
   const response = await anthropic.messages.create({
     model: CLAUDE_MODEL,
     max_tokens: opts.maxTokens,
+    thinking: { type: opts.thinking ?? 'adaptive' },
+    output_config: { effort: opts.effort ?? 'medium' },
     system: opts.cacheSystem
       ? [{ type: 'text', text: opts.system, cache_control: { type: 'ephemeral' } }]
       : opts.system,

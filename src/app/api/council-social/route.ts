@@ -44,7 +44,9 @@ Odpowiadaj WYŁĄCZNIE w JSON:
       apiKey,
       system,
       userText: `MATERIAŁ (przypomnienie): ${input}\n\nOPINIE POZOSTAŁYCH:\n${othersText}\n\nTwoja rewizja:`,
-      maxTokens: 512,
+      maxTokens: 2048,
+      thinking: 'adaptive',
+      effort: 'low',
     })
     const parsed = extractJson(text)
     if (!parsed) return apiError('Niepoprawny format odpowiedzi modelu', 502)

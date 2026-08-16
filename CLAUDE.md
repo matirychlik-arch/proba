@@ -24,7 +24,7 @@ Właściciel produktu: Mat — grafik, twórca wideo, założyciel KOMBINI (auto
 Frontend:  Next.js 14 (App Router) + TypeScript
 Styling:   Tailwind CSS + CSS Variables (własny design system)
 Backend:   Next.js API Routes (serverless)
-AI:        Anthropic Claude API (claude-sonnet-4-20250514)
+AI:        Anthropic Claude API (claude-sonnet-5)
 Storage:   localStorage (MVP) → później migracja do Supabase
 Fonts:     Google Fonts — DM Sans (główna) + DM Mono (labels/meta)
 Deploy:    Vercel (zero-config z Next.js)
@@ -328,7 +328,14 @@ interface PersonaResult {
   - Przycisk "Pokaż/Ukryj"
   - Przycisk "Testuj połączenie" — wysyła testowy request do API
   - Info: "Twój klucz jest przechowywany tylko lokalnie w tej przeglądarce. Nigdy nie jest wysyłany nigdzie poza Anthropic API."
-- Model: dropdown (tylko claude-sonnet-4-20250514 — nie dawać innych opcji w MVP)
+- Model: dropdown (tylko claude-sonnet-5 — nie dawać innych opcji w MVP)
+
+**Konfiguracja myślenia (Sonnet 5):** myślenie jest domyślnie włączone i liczy się do `max_tokens`
+razem z odpowiedzią, więc każda trasa ustawia je jawnie. Szybka analiza: `thinking: disabled`
+(strumień musi budować się od razu, bez pauzy na myślenie). Rada person: `adaptive` — UI pokazuje
+obrady, więc pauza jest niewidoczna, a jakość wcielenia w personę rośnie. Synteza stratega: `high`
+effort. Przy zmianie modelu lub promptów podbić `PROMPT_VERSION` — inaczej pętla walidacji
+porównuje różne systemy.
 
 ---
 

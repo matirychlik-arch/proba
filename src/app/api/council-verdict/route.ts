@@ -75,7 +75,10 @@ Odpowiadaj WYŁĄCZNIE w JSON:
       apiKey,
       system,
       userText: `TRYB: ${mode}\nMATERIAŁ:\n${input}\n\nNIEZALEŻNE REAKCJE PERSON:\n${resultsText}${coldText}${shiftsText}\n\nTwoja synteza:`,
-      maxTokens: 1536,
+      // Synteza to najtrudniejszy krok rady — tu myślenie zwraca się najbardziej.
+      maxTokens: 6000,
+      thinking: 'adaptive',
+      effort: 'high',
     })
     const parsed = extractJson(text)
     if (!parsed) return apiError('Niepoprawny format odpowiedzi modelu', 502)

@@ -12,7 +12,10 @@ export async function POST(req: NextRequest) {
   try {
     await anthropic.messages.create({
       model: CLAUDE_MODEL,
-      max_tokens: 8,
+      max_tokens: 16,
+      // Sam ping — myślenie tylko zjadłoby budżet tokenów.
+      thinking: { type: 'disabled' },
+      output_config: { effort: 'low' },
       messages: [{ role: 'user', content: 'ping' }],
     })
     return Response.json({ ok: true })
