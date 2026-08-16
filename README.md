@@ -5,7 +5,7 @@ złotówkę na kampanię. Werdykty, score'y, reakcje per persona, zimny klient i
 
 **Produkcja:** https://proba-chi.vercel.app (klucz API Anthropic w `/settings`)
 
-## 🖥 Apka lokalna na maca (tryb CLI — bez klucza API)
+## 🖥 Apka na maca (tryb CLI — bez klucza API)
 
 Lokalnie Proba może używać **Claude Code** (Twojej subskrypcji Claude) zamiast płatnego
 klucza API.
@@ -18,12 +18,18 @@ klucza API.
 ```bash
 git clone https://github.com/matirychlik-arch/proba.git
 ```
-…i kliknij dwa razy **`Proba.command`** w Finderze. Pierwszy start buduje aplikację
-(2–3 min), kolejne są natychmiastowe. Przeglądarka otworzy się sama na
-`http://localhost:3789`.
+…i kliknij dwa razy **`Proba.app`** w sklonowanym folderze — **bez okna Terminala**.
+Serwer startuje w tle, przeglądarka otwiera się sama na `http://localhost:3789`.
+Pierwsze uruchomienie buduje aplikację (2–3 min, dostaniesz powiadomienie systemowe) —
+kolejne starty są natychmiastowe. Ponowne kliknięcie, gdy Proba już działa, po prostu
+otwiera przeglądarkę.
 
-> Przy pierwszym kliknięciu macOS może zablokować plik (Gatekeeper) — kliknij prawym
-> przyciskiem → **Otwórz** → **Otwórz**.
+**Zatrzymanie:** Ustawienia Proby → „⏻ Zatrzymaj lokalny serwer".
+Logi: `~/Library/Logs/Proba.log`.
+
+> `Proba.app` musi zostać w folderze projektu (obok `package.json`) — możesz przeciągnąć
+> ją do Docku dla wygody. Alternatywa terminalowa: `./Proba.command`.
+> Jeśli macOS zablokuje pierwszy start (Gatekeeper): prawy przycisk → **Otwórz** → **Otwórz**.
 
 **Ograniczenia trybu CLI:** brak obsługi obrazów w analizach (wymaga klucza API),
 wynik Szybkiej analizy pojawia się w całości po ~20–30 s (bez streamingu), Rada person
