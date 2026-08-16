@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ◎ Proba — Universal Marketing Prediction Tool
 
-## Getting Started
+Testuj decyzje marketingowe przez symulację reakcji person klientów — zanim wydasz
+złotówkę na kampanię. Werdykty, score'y, reakcje per persona, zimny klient i rada person.
 
-First, run the development server:
+**Produkcja:** https://proba-chi.vercel.app (klucz API Anthropic w `/settings`)
 
+## 🖥 Apka lokalna na maca (tryb CLI — bez klucza API)
+
+Lokalnie Proba może używać **Claude Code** (Twojej subskrypcji Claude) zamiast płatnego
+klucza API.
+
+**Wymagania (jednorazowo):**
+1. [Node.js 18+](https://nodejs.org) (LTS)
+2. Claude Code: `npm install -g @anthropic-ai/claude-code`, potem `claude` i zaloguj się
+
+**Start:**
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/matirychlik-arch/proba.git
 ```
+…i kliknij dwa razy **`Proba.command`** w Finderze. Pierwszy start buduje aplikację
+(2–3 min), kolejne są natychmiastowe. Przeglądarka otworzy się sama na
+`http://localhost:3789`.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+> Przy pierwszym kliknięciu macOS może zablokować plik (Gatekeeper) — kliknij prawym
+> przyciskiem → **Otwórz** → **Otwórz**.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+**Ograniczenia trybu CLI:** brak obsługi obrazów w analizach (wymaga klucza API),
+wynik Szybkiej analizy pojawia się w całości po ~20–30 s (bez streamingu), Rada person
+działa wolniej (~4–5 min). Tryb CLI jest do użytku osobistego — subskrypcja konsumencka
+nie może być backendem usługi dla osób trzecich.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🔧 Tryby providera
 
-## Learn More
+| | Provider | Konfiguracja |
+|---|---|---|
+| Vercel / produkcja | Anthropic API | klucz użytkownika w `/settings` (localStorage) |
+| Lokalnie (CLI) | Claude Code | `CLAUDE_PROVIDER=cli` (ustawia `Proba.command`) |
+| Lokalnie (API) | Anthropic API | `npm run dev` + klucz w `/settings` lub `.env.local` |
 
-To learn more about Next.js, take a look at the following resources:
+## 🧠 Poziomy analizy
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **⚡ Szybka analiza** — wszystkie persony w jednym prompcie, ~30 s
+- **🧠 Rada person** — każda persona osobno + zimny klient 🧊 + runda dyskusji + synteza
+  stratega (orkiestracja z przeglądarki, 2N+2 wywołań)
+- **🌊 Symulacja populacji** — zamrożona; szczegóły w `CLAUDE.md`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Pełna specyfikacja projektu: [`CLAUDE.md`](./CLAUDE.md)

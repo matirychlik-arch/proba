@@ -32,6 +32,8 @@ Deploy:    Vercel (zero-config z Next.js)
 
 **Klucz API:** Użytkownik wpisuje własny klucz Anthropic w ustawieniach aplikacji. Klucz jest przechowywany w localStorage (nigdy nie wysyłany nigdzie poza Anthropic API). W środowisku dev można użyć `.env.local` z `ANTHROPIC_API_KEY`.
 
+**Provider CLI (tylko lokalnie):** `CLAUDE_PROVIDER=cli` przełącza backend na lokalny Claude Code (subskrypcja użytkownika, zero kosztów API). Launcher: `Proba.command` (mac). Ograniczenia: brak obrazów, brak prawdziwego streamingu (wynik jednym chunkiem SSE). Tryb wyłącznie osobisty/dev — subskrypcja konsumencka nie może być backendem usługi dla osób trzecich; na Vercelu zawsze API.
+
 ---
 
 ## ARCHITEKTURA DANYCH

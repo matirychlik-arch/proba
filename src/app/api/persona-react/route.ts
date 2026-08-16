@@ -1,6 +1,12 @@
 import { NextRequest } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
-import { CLAUDE_MODEL, resolveApiKey, apiError, mapAnthropicError } from '@/lib/api-helpers'
+import {
+  resolveApiKey,
+  apiError,
+  mapAnthropicError,
+  claudeText,
+  extractJson,
+  isCliMode,
+} from '@/lib/api-helpers'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -28,24 +34,16 @@ Format:
 
 export async function POST(req: NextRequest) {
   const apiKey = resolveApiKey(req)
-  if (!apiKey) return apiError('Brak klucza API — dodaj go w ustawieniach', 401)
+  if (!apiKey && !isCliMode()) return apiError('Brak klucza API — dodaj go w ustawieniach', 401)
 
   const { persona, businessDescription, mode, input, context, imageBase64, cold } =
     await req.json()
   if (!input || !String(input).trim()) return apiError('Pusty input', 400)
 
   // Zimny klient: ZERO kontekstu biznesu i marki — widzi wyłącznie kreację.
-  const system: Anthropic.TextBlockParam[] = cold
-    ? [
-        {
-          type: 'text',
-          text: `Jesteś przypadkowym polskim konsumentem scrollującym telefon. Nie znasz tej marki, nie znasz jej historii, nikt Ci nic nie tłumaczył. Widzisz tylko to, co przed Tobą — jak w feedzie. Reagujesz szczerze i bez litości: jeśli nie rozumiesz o co chodzi, mówisz to wprost. Jeśli coś brzmi jak żargon wewnętrzny firmy — wytykasz to. Oceniasz WYŁĄCZNIE to co widzisz.\n\n${RESULT_FORMAT}`,
-        },
-      ]
-    : [
-        {
-          type: 'text',
-          text: `Wcielasz się w konkretną osobę — polskiego konsumenta. Reagujesz na materiał marketingowy tak, jak zareagowałaby ta osoba: jej językiem, jej priorytetami, jej sceptycyzmem. Nie jesteś marketerem — jesteś klientem. Bądź szczery, konkretny, bez lizania tyłka.
+  const system = cold
+    ? `Jesteś przypadkowym polskim konsumentem scrollującym telefon. Nie znasz tej marki, nie znasz jej historii, nikt Ci nic nie tłumaczył. Widzisz tylko to, co przed Tobą — jak w feedzie. Reagujesz szczerze i bez litości: jeśli nie rozumiesz o co chodzi, mówisz to wprost. Jeśli coś brzmi jak żargon wewnętrzny firmy — wytykasz to. Oceniasz WYŁĄCZNIE to co widzisz.\n\n${RESULT_FORMAT}`
+    : `Wcielasz się w konkretną osobę — polskiego konsumenta. Reagujesz na materiał marketingowy tak, jak zareagowałaby ta osoba: jej językiem, jej priorytetami, jej sceptycyzmem. Nie jesteś marketerem — jesteś klientem. Bądź szczery, konkretny, bez lizania tyłka.
 
 TWOJA TOŻSAMOŚĆ:
 Imię: ${persona?.name}, wiek: ${persona?.age}
@@ -54,44 +52,26 @@ ${persona?.description}
 KONTEKST BIZNESOWY (znasz tę markę jako klient):
 ${businessDescription ?? ''}
 
-${RESULT_FORMAT}`,
-          // Wspólny prefix person jest różny per persona, ale opis biznesu i format się
-          // powtarzają — cache mimo to pomaga przy rundzie dyskusji z tym samym system.
-          cache_control: { type: 'ephemeral' },
-        },
-      ]
+${RESULT_FORMAT}`
 
-  const userContent: Anthropic.ContentBlockParam[] = []
-  if (imageBase64) {
-    userContent.push({
-      type: 'image',
-      source: { type: 'base64', media_type: 'image/jpeg', data: imageBase64 },
-    })
-  }
-  userContent.push({
-    type: 'text',
-    text:
-      `TYP MATERIAŁU: ${MODE_LABELS[mode] ?? mode}\nMATERIAŁ:\n${input}` +
-      (context && !cold ? `\n\nDODATKOWY KONTEKST: ${context}` : ''),
-  })
+  const userText =
+    `TYP MATERIAŁU: ${MODE_LABELS[mode] ?? mode}\nMATERIAŁ:\n${input}` +
+    (context && !cold ? `\n\nDODATKOWY KONTEKST: ${context}` : '')
 
-  const anthropic = new Anthropic({ apiKey })
   try {
-    const response = await anthropic.messages.create({
-      model: CLAUDE_MODEL,
-      max_tokens: 1024,
+    const text = await claudeText({
+      apiKey,
       system,
-      messages: [{ role: 'user', content: userContent }],
+      userText,
+      imageBase64,
+      maxTokens: 1024,
+      cacheSystem: !cold,
     })
-    const text = response.content
-      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-      .map((b) => b.text)
-      .join('')
-    const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) return apiError('Niepoprawny format odpowiedzi modelu', 502)
-    return Response.json(JSON.parse(jsonMatch[0]))
+    const parsed = extractJson(text)
+    if (!parsed) return apiError('Niepoprawny format odpowiedzi modelu', 502)
+    return Response.json(parsed)
   } catch (err) {
-    if (err instanceof SyntaxError) return apiError('Błąd parsowania odpowiedzi', 502)
+    if (isCliMode() && err instanceof Error) return apiError(err.message, 500)
     const { message, status } = mapAnthropicError(err)
     return apiError(message, status)
   }
