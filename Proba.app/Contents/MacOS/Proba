@@ -4,6 +4,10 @@
 #  Startuje lokalny serwer Proby w trybie CLI (subskrypcja
 #  Claude), otwiera przeglądarkę i kończy pracę. Serwer żyje
 #  w tle — wyłączysz go przyciskiem w Ustawieniach Proby.
+#
+#  Apkę można trzymać gdziekolwiek (np. w /Applications) —
+#  ścieżkę do projektu launcher zapamiętuje przy pierwszym
+#  uruchomieniu.
 # ─────────────────────────────────────────────────────────────
 
 # Login shell → pełny PATH użytkownika (Homebrew, nvm, itp.)
@@ -15,10 +19,11 @@ fi
 PORT=3789
 URL="http://localhost:$PORT"
 SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(cd "$SELF_DIR/../../.." && pwd)"
 LOG_DIR="$HOME/Library/Logs"
 LOG="$LOG_DIR/Proba.log"
-mkdir -p "$LOG_DIR"
+CONFIG_DIR="$HOME/Library/Application Support/Proba"
+CONFIG="$CONFIG_DIR/repo-path"
+mkdir -p "$LOG_DIR" "$CONFIG_DIR"
 
 notify() {
   /usr/bin/osascript -e "display notification \"$1\" with title \"Proba\"" >/dev/null 2>&1 || true
@@ -28,6 +33,55 @@ fail() {
   /usr/bin/osascript -e "display dialog \"$1\" with title \"Proba\" buttons {\"OK\"} default button 1 with icon caution" >/dev/null 2>&1 || true
   exit 1
 }
+
+# Czy katalog to projekt Proby?
+is_proba_repo() {
+  [ -f "$1/package.json" ] && [ -f "$1/src/lib/council.ts" ]
+}
+
+# ── Ustal katalog projektu ──
+# 1) folder obok apki (gdy Proba.app została w repo)
+# 2) zapamiętana ścieżka z poprzedniego uruchomienia
+# 3) typowe lokalizacje klonu
+# 4) zapytaj użytkownika i zapamiętaj
+REPO_ROOT=""
+CANDIDATE="$(cd "$SELF_DIR/../../.." 2>/dev/null && pwd)"
+if [ -n "$CANDIDATE" ] && is_proba_repo "$CANDIDATE"; then
+  REPO_ROOT="$CANDIDATE"
+fi
+
+if [ -z "$REPO_ROOT" ] && [ -f "$CONFIG" ]; then
+  SAVED="$(cat "$CONFIG")"
+  if is_proba_repo "$SAVED"; then REPO_ROOT="$SAVED"; fi
+fi
+
+if [ -z "$REPO_ROOT" ]; then
+  for DIR in "$HOME/proba" "$HOME/Developer/proba" "$HOME/Documents/proba" \
+             "$HOME/Desktop/proba" "$HOME/Projects/proba" "$HOME/code/proba"; do
+    if is_proba_repo "$DIR"; then REPO_ROOT="$DIR"; break; fi
+  done
+fi
+
+if [ -z "$REPO_ROOT" ]; then
+  CHOSEN="$(/usr/bin/osascript <<'APPLESCRIPT' 2>/dev/null
+try
+  display dialog "Wskaż folder z projektem Proba (sklonowane repozytorium)." with title "Proba" buttons {"Wybierz folder"} default button 1
+  set f to choose folder with prompt "Gdzie jest folder proba?"
+  POSIX path of f
+end try
+APPLESCRIPT
+)"
+  CHOSEN="${CHOSEN%/}"
+  if [ -n "$CHOSEN" ] && is_proba_repo "$CHOSEN"; then
+    REPO_ROOT="$CHOSEN"
+    printf '%s' "$REPO_ROOT" > "$CONFIG"
+  fi
+fi
+
+[ -n "$REPO_ROOT" ] || fail "Nie znalazłem projektu Proba. Sklonuj go:  git clone https://github.com/matirychlik-arch/proba.git  — a potem uruchom Probę ponownie i wskaż ten folder."
+
+# Zapamiętaj na przyszłość (także gdy apka leży w repo — ułatwia przeniesienie do /Applications)
+printf '%s' "$REPO_ROOT" > "$CONFIG"
 
 # Już działa? → tylko otwórz przeglądarkę.
 if curl -s --max-time 2 "$URL/api/provider" >/dev/null 2>&1; then
@@ -41,8 +95,7 @@ NODE_MAJOR=$(node -v | sed 's/v\([0-9]*\).*/\1/')
 [ "$NODE_MAJOR" -ge 18 ] 2>/dev/null || fail "Node.js $(node -v) jest za stary — potrzeba wersji 18 lub nowszej (nodejs.org)."
 command -v claude >/dev/null 2>&1 || fail "Brak Claude Code. W Terminalu wykonaj: npm install -g @anthropic-ai/claude-code — a potem zaloguj się komendą: claude"
 
-cd "$REPO_ROOT" || fail "Nie znalazłem katalogu projektu Proba."
-[ -f package.json ] || fail "Proba.app musi zostać w sklonowanym folderze proba (obok package.json)."
+cd "$REPO_ROOT" || fail "Nie mogę wejść do katalogu projektu: $REPO_ROOT"
 
 # ── Instalacja / build przy pierwszym starcie lub po aktualizacji ──
 if [ ! -d node_modules ]; then
