@@ -1,0 +1,72 @@
+#!/bin/bash
+# ─────────────────────────────────────────────────────────────
+#  Proba.app — natywny launcher (bez okna Terminala)
+#  Startuje lokalny serwer Proby w trybie CLI (subskrypcja
+#  Claude), otwiera przeglądarkę i kończy pracę. Serwer żyje
+#  w tle — wyłączysz go przyciskiem w Ustawieniach Proby.
+# ─────────────────────────────────────────────────────────────
+
+# Login shell → pełny PATH użytkownika (Homebrew, nvm, itp.)
+if [ -z "$PROBA_RELAUNCHED" ]; then
+  export PROBA_RELAUNCHED=1
+  exec /bin/zsh -l "$0" "$@"
+fi
+
+PORT=3789
+URL="http://localhost:$PORT"
+SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SELF_DIR/../../.." && pwd)"
+LOG_DIR="$HOME/Library/Logs"
+LOG="$LOG_DIR/Proba.log"
+mkdir -p "$LOG_DIR"
+
+notify() {
+  /usr/bin/osascript -e "display notification \"$1\" with title \"Proba\"" >/dev/null 2>&1 || true
+}
+
+fail() {
+  /usr/bin/osascript -e "display dialog \"$1\" with title \"Proba\" buttons {\"OK\"} default button 1 with icon caution" >/dev/null 2>&1 || true
+  exit 1
+}
+
+# Już działa? → tylko otwórz przeglądarkę.
+if curl -s --max-time 2 "$URL/api/provider" >/dev/null 2>&1; then
+  open "$URL"
+  exit 0
+fi
+
+# ── Wymagania ──
+command -v node >/dev/null 2>&1 || fail "Brak Node.js. Zainstaluj wersję LTS ze strony nodejs.org i uruchom Probę ponownie."
+NODE_MAJOR=$(node -v | sed 's/v\([0-9]*\).*/\1/')
+[ "$NODE_MAJOR" -ge 18 ] 2>/dev/null || fail "Node.js $(node -v) jest za stary — potrzeba wersji 18 lub nowszej (nodejs.org)."
+command -v claude >/dev/null 2>&1 || fail "Brak Claude Code. W Terminalu wykonaj: npm install -g @anthropic-ai/claude-code — a potem zaloguj się komendą: claude"
+
+cd "$REPO_ROOT" || fail "Nie znalazłem katalogu projektu Proba."
+[ -f package.json ] || fail "Proba.app musi zostać w sklonowanym folderze proba (obok package.json)."
+
+# ── Instalacja / build przy pierwszym starcie lub po aktualizacji ──
+if [ ! -d node_modules ]; then
+  notify "Pierwsze uruchomienie — instaluję zależności (2-3 min)..."
+  npm install --no-fund --no-audit >>"$LOG" 2>&1 || fail "npm install nie powiódł się. Szczegóły: ~/Library/Logs/Proba.log"
+fi
+if [ ! -d .next ] || [ -n "$(find src package.json -newer .next -print -quit 2>/dev/null)" ]; then
+  notify "Buduję aplikację..."
+  npm run build >>"$LOG" 2>&1 || fail "Build nie powiódł się. Szczegóły: ~/Library/Logs/Proba.log"
+fi
+
+# ── Start serwera w tle (odczepiony od launchera) ──
+export CLAUDE_PROVIDER=cli
+nohup npx next start -p $PORT >>"$LOG" 2>&1 &
+disown
+
+# Poczekaj aż wstanie (max 30 s), potem otwórz przeglądarkę.
+for _ in $(seq 1 60); do
+  if curl -s --max-time 1 "$URL/api/provider" >/dev/null 2>&1; then
+    notify "Proba działa — tryb CLI (Twoja subskrypcja Claude)"
+    open "$URL"
+    exit 0
+  fi
+  sleep 0.5
+done
+
+fail "Serwer nie wstał w 30 sekund. Szczegóły: ~/Library/Logs/Proba.log"

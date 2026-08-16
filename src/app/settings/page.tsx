@@ -74,6 +74,22 @@ export default function SettingsPage() {
           <strong style={{ color: 'var(--blue)' }}>💻 Tryb CLI aktywny</strong> — ta instancja
           używa lokalnego Claude Code (Twojej subskrypcji). Klucz API nie jest potrzebny do
           analiz. Obrazy w analizach wymagają jednak klucza API.
+          <div style={{ marginTop: 12 }}>
+            <Button
+              variant="ghost"
+              style={{ padding: '8px 16px', fontSize: 13, color: 'var(--coral)' }}
+              onClick={async () => {
+                try {
+                  await fetch('/api/shutdown', { method: 'POST' })
+                  toast('Proba zatrzymana — możesz zamknąć tę kartę', 'info')
+                } catch {
+                  toast('Serwer już nie odpowiada — prawdopodobnie zatrzymany', 'info')
+                }
+              }}
+            >
+              ⏻ Zatrzymaj lokalny serwer
+            </Button>
+          </div>
         </div>
       )}
 
