@@ -18,6 +18,7 @@ import { getWorkspace, getApiKey, saveAnalysis } from '@/lib/storage'
 import { resizeImage, validateImageFile } from '@/lib/image'
 import { parsePartialJson } from '@/lib/partial-json'
 import { runCouncil, CouncilProgress } from '@/lib/council'
+import { getProvider } from '@/lib/provider'
 import Card from '@/components/ui/Card'
 import Label from '@/components/ui/Label'
 import Button from '@/components/ui/Button'
@@ -106,7 +107,7 @@ export default function AnalyzeClient() {
       return
     }
     const apiKey = getApiKey()
-    if (!apiKey) {
+    if (!apiKey && (await getProvider()) !== 'cli') {
       setShowApiModal(true)
       return
     }

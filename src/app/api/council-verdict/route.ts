@@ -1,13 +1,19 @@
 import { NextRequest } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
-import { CLAUDE_MODEL, resolveApiKey, apiError, mapAnthropicError } from '@/lib/api-helpers'
+import {
+  resolveApiKey,
+  apiError,
+  mapAnthropicError,
+  claudeText,
+  extractJson,
+  isCliMode,
+} from '@/lib/api-helpers'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   const apiKey = resolveApiKey(req)
-  if (!apiKey) return apiError('Brak klucza API — dodaj go w ustawieniach', 401)
+  if (!apiKey && !isCliMode()) return apiError('Brak klucza API — dodaj go w ustawieniach', 401)
 
   const { mode, input, businessDescription, personaResults, coldClient, socialShifts } =
     await req.json()
@@ -64,28 +70,18 @@ Odpowiadaj WYŁĄCZNIE w JSON:
           .join('\n')}`
       : ''
 
-  const anthropic = new Anthropic({ apiKey })
   try {
-    const response = await anthropic.messages.create({
-      model: CLAUDE_MODEL,
-      max_tokens: 1536,
+    const text = await claudeText({
+      apiKey,
       system,
-      messages: [
-        {
-          role: 'user',
-          content: `TRYB: ${mode}\nMATERIAŁ:\n${input}\n\nNIEZALEŻNE REAKCJE PERSON:\n${resultsText}${coldText}${shiftsText}\n\nTwoja synteza:`,
-        },
-      ],
+      userText: `TRYB: ${mode}\nMATERIAŁ:\n${input}\n\nNIEZALEŻNE REAKCJE PERSON:\n${resultsText}${coldText}${shiftsText}\n\nTwoja synteza:`,
+      maxTokens: 1536,
     })
-    const text = response.content
-      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-      .map((b) => b.text)
-      .join('')
-    const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) return apiError('Niepoprawny format odpowiedzi modelu', 502)
-    return Response.json(JSON.parse(jsonMatch[0]))
+    const parsed = extractJson(text)
+    if (!parsed) return apiError('Niepoprawny format odpowiedzi modelu', 502)
+    return Response.json(parsed)
   } catch (err) {
-    if (err instanceof SyntaxError) return apiError('Błąd parsowania odpowiedzi', 502)
+    if (isCliMode() && err instanceof Error) return apiError(err.message, 500)
     const { message, status } = mapAnthropicError(err)
     return apiError(message, status)
   }

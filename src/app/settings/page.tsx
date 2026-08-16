@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { getApiKey, saveApiKey } from '@/lib/storage'
+import { getProvider } from '@/lib/provider'
 import Card from '@/components/ui/Card'
 import Label from '@/components/ui/Label'
 import Button from '@/components/ui/Button'
@@ -12,10 +13,12 @@ export default function SettingsPage() {
   const [apiKey, setApiKey] = useState('')
   const [visible, setVisible] = useState(false)
   const [testing, setTesting] = useState(false)
+  const [cliMode, setCliMode] = useState(false)
   const toast = useToast()
 
   useEffect(() => {
     setApiKey(getApiKey())
+    getProvider().then((p) => setCliMode(p === 'cli'))
   }, [])
 
   const handleSave = () => {
@@ -55,6 +58,24 @@ export default function SettingsPage() {
           Ustawienia globalne
         </h1>
       </div>
+
+      {cliMode && (
+        <div
+          style={{
+            background: 'var(--blue-pale)',
+            border: '0.5px solid var(--blue-border)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '14px 18px',
+            fontSize: 13,
+            lineHeight: 1.6,
+            color: 'var(--text-secondary)',
+          }}
+        >
+          <strong style={{ color: 'var(--blue)' }}>💻 Tryb CLI aktywny</strong> — ta instancja
+          używa lokalnego Claude Code (Twojej subskrypcji). Klucz API nie jest potrzebny do
+          analiz. Obrazy w analizach wymagają jednak klucza API.
+        </div>
+      )}
 
       <Card>
         <Label style={{ marginBottom: 10 }}>Klucz API Anthropic</Label>

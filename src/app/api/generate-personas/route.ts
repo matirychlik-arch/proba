@@ -1,6 +1,12 @@
 import { NextRequest } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
-import { CLAUDE_MODEL, resolveApiKey, apiError, mapAnthropicError } from '@/lib/api-helpers'
+import {
+  resolveApiKey,
+  apiError,
+  mapAnthropicError,
+  claudeText,
+  extractJson,
+  isCliMode,
+} from '@/lib/api-helpers'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -25,45 +31,30 @@ Format:
 
 export async function POST(req: NextRequest) {
   const apiKey = resolveApiKey(req)
-  if (!apiKey) return apiError('Brak klucza API — dodaj go w ustawieniach', 401)
+  if (!apiKey && !isCliMode()) return apiError('Brak klucza API — dodaj go w ustawieniach', 401)
 
   const { description, industry, city } = await req.json()
   if (!description || String(description).trim().length < 20) {
     return apiError('Opis biznesu jest za krótki żeby wygenerować sensowne persony', 400)
   }
 
-  const anthropic = new Anthropic({ apiKey })
   try {
-    const response = await anthropic.messages.create({
-      model: CLAUDE_MODEL,
-      max_tokens: 4096,
+    const text = await claudeText({
+      apiKey,
       system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: `Opis biznesu: ${description}\nBranża: ${industry ?? 'nie podano'}\nMiasto: ${city ?? 'nie podano'}`,
-        },
-      ],
+      userText: `Opis biznesu: ${description}\nBranża: ${industry ?? 'nie podano'}\nMiasto: ${city ?? 'nie podano'}`,
+      maxTokens: 4096,
     })
 
-    const text = response.content
-      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-      .map((b) => b.text)
-      .join('')
-
-    const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) return apiError('Model zwrócił niepoprawny format — spróbuj ponownie', 502)
-
-    const parsed = JSON.parse(jsonMatch[0])
+    const parsed = extractJson<{ personas?: unknown[] }>(text)
+    if (!parsed) return apiError('Model zwrócił niepoprawny format — spróbuj ponownie', 502)
     if (!Array.isArray(parsed.personas) || parsed.personas.length === 0) {
       return apiError('Model nie wygenerował person — spróbuj ponownie', 502)
     }
 
     return Response.json({ personas: parsed.personas })
   } catch (err) {
-    if (err instanceof SyntaxError) {
-      return apiError('Nie udało się sparsować odpowiedzi modelu — spróbuj ponownie', 502)
-    }
+    if (isCliMode() && err instanceof Error) return apiError(err.message, 500)
     const { message, status } = mapAnthropicError(err)
     return apiError(message, status)
   }
