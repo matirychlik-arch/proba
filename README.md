@@ -18,11 +18,31 @@ klucza API.
 ```bash
 git clone https://github.com/matirychlik-arch/proba.git
 ```
-…i kliknij dwa razy **`Proba.app`** w sklonowanym folderze — **bez okna Terminala**.
-Serwer startuje w tle, przeglądarka otwiera się sama na `http://localhost:3789`.
-Pierwsze uruchomienie buduje aplikację (2–3 min, dostaniesz powiadomienie systemowe) —
-kolejne starty są natychmiastowe. Ponowne kliknięcie, gdy Proba już działa, po prostu
-otwiera przeglądarkę.
+…i kliknij dwa razy **`Proba.app`** w sklonowanym folderze. Proba otwiera **własne okno
+programu** (Electron) — bez Terminala i bez przeglądarki. Pierwsze uruchomienie instaluje
+zależności i buduje aplikację (3–5 min, dostaniesz powiadomienia systemowe); kolejne
+starty są natychmiastowe.
+
+### 🎬 Analiza wideo (tylko wersja na Maca)
+
+```bash
+brew install ffmpeg          # wymagane — klatki i ścieżka dźwiękowa
+brew install whisper-cpp     # opcjonalne — darmowy transkrypt offline
+```
+
+W widoku analizy pojawi się przycisk **„Wybierz wideo z dysku"**. Proba:
+
+1. wyciąga klatki z całej długości (30–100, gęściej dla krótkich wideo),
+2. przepisuje ścieżkę dźwiękową (whisper.cpp lokalnie → Groq API → ręcznie),
+3. czyta wideo klatka po klatce i buduje opis: hook, przebieg, styl, tempo,
+4. ten opis wchodzi do normalnej analizy — szybkiej albo rady person.
+
+Plik wideo **nie jest nigdzie wysyłany** — ffmpeg czyta go prosto z dysku, klatki lądują
+w katalogu tymczasowym i są kasowane po analizie. W trybie CLI cała analiza idzie przez
+Twoją subskrypcję Claude, więc **nie kosztuje nic ponad abonament**.
+
+Transkrypt przez Groq (opcjonalnie, gdy nie chcesz instalować whisper.cpp): dopisz
+`GROQ_API_KEY=...` do `.env.local`.
 
 **Chcesz mieć Probę w Aplikacjach?** Przeciągnij (lub skopiuj) `Proba.app` do
 `/Applications` — launcher sam odnajdzie folder projektu: sprawdza typowe lokalizacje

@@ -30,6 +30,9 @@ interface ClaudeTextOptions {
   system: string
   userText: string
   imageBase64?: string
+  /** Klatki wideo. W trybie CLI wystarczy `path` (Claude Code czyta z dysku),
+   *  w trybie API potrzebny jest `base64`. */
+  frames?: Array<{ t: number; path: string; base64?: string }>
   maxTokens: number
   /** Cache'uj system prompt (opłaca się gdy ten sam system idzie w N calli). */
   cacheSystem?: boolean
@@ -49,10 +52,20 @@ export async function claudeText(opts: ClaudeTextOptions): Promise<string> {
   if (isCliMode()) {
     if (opts.imageBase64) {
       throw new Error(
-        'Tryb CLI nie obsługuje obrazów — usuń obraz albo przełącz się na klucz API'
+        'Tryb CLI nie obsługuje pojedynczego obrazu z uploadu — użyj klucza API albo trybu wideo'
       )
     }
-    return runClaudeCli(opts.system, opts.userText)
+    // Klatki wideo: Claude Code czyta je z dysku, więc podajemy ścieżki w prompcie.
+    let userText = opts.userText
+    if (opts.frames?.length) {
+      const list = opts.frames
+        .map((f) => `- [${f.t.toFixed(1)}s] ${f.path}`)
+        .join('\n')
+      userText =
+        `Poniżej ${opts.frames.length} klatek wideo na dysku, w kolejności chronologicznej. ` +
+        `PRZECZYTAJ KAŻDĄ z nich narzędziem Read, zanim odpowiesz:\n${list}\n\n${userText}`
+    }
+    return runClaudeCli(opts.system, userText)
   }
 
   if (!opts.apiKey) {
@@ -67,6 +80,16 @@ export async function claudeText(opts: ClaudeTextOptions): Promise<string> {
     content.push({
       type: 'image',
       source: { type: 'base64', media_type: 'image/jpeg', data: opts.imageBase64 },
+    })
+  }
+  // Każdą klatkę poprzedzamy jej znacznikiem czasu, żeby model wiedział,
+  // co po czym następuje — inaczej widzi tylko worek obrazków.
+  for (const f of opts.frames ?? []) {
+    if (!f.base64) continue
+    content.push({ type: 'text', text: `[${f.t.toFixed(1)}s]` })
+    content.push({
+      type: 'image',
+      source: { type: 'base64', media_type: 'image/jpeg', data: f.base64 },
     })
   }
   content.push({ type: 'text', text: opts.userText })

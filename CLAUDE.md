@@ -32,6 +32,18 @@ Deploy:    Vercel (zero-config z Next.js)
 
 **Klucz API:** Użytkownik wpisuje własny klucz Anthropic w ustawieniach aplikacji. Klucz jest przechowywany w localStorage (nigdy nie wysyłany nigdzie poza Anthropic API). W środowisku dev można użyć `.env.local` z `ANTHROPIC_API_KEY`.
 
+**Aplikacja natywna na maca (Electron):** `Proba.app` otwiera własne okno programu i uruchamia
+w nim serwer Next.js w trybie CLI. Przewaga nad przeglądarką: natywne okno wyboru pliku zwraca
+PRAWDZIWĄ ścieżkę do wideo, więc ffmpeg czyta plik z dysku — bez uploadu i bez limitu rozmiaru.
+
+**Analiza wideo (wyłącznie lokalnie):** pipeline `wideo → klatki + transkrypt → opis tekstowy`.
+ffmpeg wyciąga 30–100 klatek (budżet wg długości, wzorowany na bradautomates/claude-video, MIT)
+i audio 16 kHz mono; transkrypt: whisper.cpp lokalnie → Groq API → ręcznie. Osobne wywołanie
+Claude ("digest") zamienia klatki + transkrypt w ustrukturyzowany opis (hook, przebieg, styl,
+tempo), który wchodzi do istniejącego pipeline'u jako zwykły `input` — dzięki temu szybka
+analiza, rada person i zimny klient działają na wideo BEZ ZMIAN. Na Vercelu endpoint jest
+świadomie zablokowany (brak ffmpeg i brak dostępu do pliku).
+
 **Provider CLI (tylko lokalnie):** `CLAUDE_PROVIDER=cli` przełącza backend na lokalny Claude Code (subskrypcja użytkownika, zero kosztów API). Launcher: `Proba.command` (mac). Ograniczenia: brak obrazów, brak prawdziwego streamingu (wynik jednym chunkiem SSE). Tryb wyłącznie osobisty/dev — subskrypcja konsumencka nie może być backendem usługi dla osób trzecich; na Vercelu zawsze API.
 
 ---

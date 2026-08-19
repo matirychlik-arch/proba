@@ -19,6 +19,12 @@ import { resizeImage, validateImageFile } from '@/lib/image'
 import { parsePartialJson } from '@/lib/partial-json'
 import { runCouncil, CouncilProgress } from '@/lib/council'
 import { getProvider } from '@/lib/provider'
+import {
+  getVideoCapabilities,
+  pickVideo,
+  transcriptSourceLabel,
+  type VideoCapabilities,
+} from '@/lib/desktop'
 import Card from '@/components/ui/Card'
 import Label from '@/components/ui/Label'
 import Button from '@/components/ui/Button'
@@ -30,6 +36,11 @@ import AnalysisResults, { PartialResult } from '@/components/AnalysisResults'
 import { useToast } from '@/components/ui/Toast'
 
 const MODES: AnalysisMode[] = ['kreacja', 'hook', 'cena', 'kampania', 'content', 'decyzja']
+
+interface VideoDigestSummary {
+  hook: string
+  meta: { durationSec: number; resolution: string; frameCount: number; transcriptSource: string }
+}
 
 export default function AnalyzeClient() {
   const { id } = useParams<{ id: string }>()
@@ -54,13 +65,54 @@ export default function AnalyzeClient() {
   const [councilProgress, setCouncilProgress] = useState<CouncilProgress | null>(null)
   const [saved, setSaved] = useState(false)
   const [showApiModal, setShowApiModal] = useState(false)
+  const [videoCaps, setVideoCaps] = useState<VideoCapabilities | null>(null)
+  const [videoProcessing, setVideoProcessing] = useState(false)
+  const [videoDigest, setVideoDigest] = useState<VideoDigestSummary | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const ws = getWorkspace(id)
     setWorkspace(ws)
     if (ws) setSelectedIds(ws.personas.map((p) => p.id))
+    getVideoCapabilities().then(setVideoCaps)
   }, [id])
+
+  /**
+   * Wideo → tekst. Natywne okno daje prawdziwą ścieżkę, więc ffmpeg czyta plik
+   * z dysku (bez uploadu). Wynikowy opis ląduje w polu inputu i dalej idzie
+   * przez normalny pipeline analizy.
+   */
+  const handlePickVideo = async () => {
+    const path = await pickVideo()
+    if (!path) return
+
+    setVideoProcessing(true)
+    try {
+      const apiKey = getApiKey()
+      const res = await fetch('/api/video/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(apiKey ? { 'X-Api-Key': apiKey } : {}) },
+        body: JSON.stringify({ videoPath: path, hint: context.trim() || undefined }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast(data.error ?? 'Nie udało się przetworzyć wideo', 'error')
+        return
+      }
+      setVideoDigest(data.digest)
+      setInput(data.analysisInput)
+      toast(
+        `Wideo przeczytane: ${data.digest.meta.frameCount} klatek, ${transcriptSourceLabel(
+          data.digest.meta.transcriptSource
+        )}`,
+        'success'
+      )
+    } catch {
+      toast('Błąd podczas przetwarzania wideo', 'error')
+    } finally {
+      setVideoProcessing(false)
+    }
+  }
 
   if (!workspace) {
     return (
@@ -370,6 +422,84 @@ export default function AnalyzeClient() {
               disabled={running}
             />
           </div>
+
+          {/* Wideo — tylko w natywnej apce z ffmpeg */}
+          {videoCaps?.video && (
+            <div>
+              <Label style={{ marginBottom: 8 }}>Wideo (opcjonalne)</Label>
+              {videoDigest ? (
+                <div
+                  style={{
+                    background: 'var(--blue-pale)',
+                    border: '0.5px solid var(--blue-border)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '12px 14px',
+                    fontSize: 12,
+                    lineHeight: 1.6,
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  <div style={{ fontWeight: 600, color: 'var(--blue)', marginBottom: 4 }}>
+                    🎬 Wideo przeczytane
+                  </div>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11 }}>
+                    {videoDigest.meta.durationSec}s · {videoDigest.meta.resolution} ·{' '}
+                    {videoDigest.meta.frameCount} klatek ·{' '}
+                    {transcriptSourceLabel(videoDigest.meta.transcriptSource)}
+                  </div>
+                  <div style={{ marginTop: 8 }}>
+                    <strong>Hook:</strong> {videoDigest.hook}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setVideoDigest(null)
+                      setInput('')
+                    }}
+                    style={{
+                      marginTop: 8,
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      cursor: 'pointer',
+                      fontSize: 11,
+                      color: 'var(--coral)',
+                      fontFamily: "'DM Sans', sans-serif",
+                    }}
+                  >
+                    × usuń wideo
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handlePickVideo}
+                  disabled={videoProcessing || running}
+                  style={{
+                    width: '100%',
+                    border: '1px dashed var(--border-input)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '20px 16px',
+                    background: 'none',
+                    cursor: videoProcessing ? 'wait' : 'pointer',
+                    fontSize: 13,
+                    color: 'var(--text-muted)',
+                    fontFamily: "'DM Sans', sans-serif",
+                  }}
+                >
+                  {videoProcessing ? (
+                    <>🎬 Czytam wideo — klatki, transkrypt, opis…</>
+                  ) : (
+                    <>
+                      🎬 Wybierz wideo z dysku
+                      <br />
+                      <span style={{ fontSize: 11, color: 'var(--text-placeholder)' }}>
+                        MP4, MOV, WEBM · Proba obejrzy je klatka po klatce i przepisze dźwięk
+                      </span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Upload */}
           <div>

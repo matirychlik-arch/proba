@@ -1,23 +1,21 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────
-#  Proba.app — natywny launcher (bez okna Terminala)
-#  Startuje lokalny serwer Proby w trybie CLI (subskrypcja
-#  Claude), otwiera przeglądarkę i kończy pracę. Serwer żyje
-#  w tle — wyłączysz go przyciskiem w Ustawieniach Proby.
+#  Proba.app — natywna aplikacja na macOS (Electron)
+#
+#  Otwiera własne okno programu (bez przeglądarki). Serwer Proby
+#  startuje wewnątrz apki w trybie CLI, więc analizy idą przez
+#  subskrypcję Claude, a nie przez płatne API.
 #
 #  Apkę można trzymać gdziekolwiek (np. w /Applications) —
-#  ścieżkę do projektu launcher zapamiętuje przy pierwszym
-#  uruchomieniu.
+#  ścieżkę do projektu launcher zapamiętuje przy pierwszym starcie.
 # ─────────────────────────────────────────────────────────────
 
-# Login shell → pełny PATH użytkownika (Homebrew, nvm, itp.)
+# Powłoka logowania → pełny PATH (Homebrew, nvm, ffmpeg, claude).
 if [ -z "$PROBA_RELAUNCHED" ]; then
   export PROBA_RELAUNCHED=1
   exec /bin/zsh -l "$0" "$@"
 fi
 
-PORT=3789
-URL="http://localhost:$PORT"
 SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 LOG_DIR="$HOME/Library/Logs"
 LOG="$LOG_DIR/Proba.log"
@@ -34,16 +32,11 @@ fail() {
   exit 1
 }
 
-# Czy katalog to projekt Proby?
 is_proba_repo() {
   [ -f "$1/package.json" ] && [ -f "$1/src/lib/council.ts" ]
 }
 
 # ── Ustal katalog projektu ──
-# 1) folder obok apki (gdy Proba.app została w repo)
-# 2) zapamiętana ścieżka z poprzedniego uruchomienia
-# 3) typowe lokalizacje klonu
-# 4) zapytaj użytkownika i zapamiętaj
 REPO_ROOT=""
 CANDIDATE="$(cd "$SELF_DIR/../../.." 2>/dev/null && pwd)"
 if [ -n "$CANDIDATE" ] && is_proba_repo "$CANDIDATE"; then
@@ -79,17 +72,9 @@ APPLESCRIPT
 fi
 
 [ -n "$REPO_ROOT" ] || fail "Nie znalazłem projektu Proba. Sklonuj go:  git clone https://github.com/matirychlik-arch/proba.git  — a potem uruchom Probę ponownie i wskaż ten folder."
-
-# Zapamiętaj na przyszłość (także gdy apka leży w repo — ułatwia przeniesienie do /Applications)
 printf '%s' "$REPO_ROOT" > "$CONFIG"
 
-# Już działa? → tylko otwórz przeglądarkę.
-if curl -s --max-time 2 "$URL/api/provider" >/dev/null 2>&1; then
-  open "$URL"
-  exit 0
-fi
-
-# ── Wymagania ──
+# ── Wymagania twarde ──
 command -v node >/dev/null 2>&1 || fail "Brak Node.js. Zainstaluj wersję LTS ze strony nodejs.org i uruchom Probę ponownie."
 NODE_MAJOR=$(node -v | sed 's/v\([0-9]*\).*/\1/')
 [ "$NODE_MAJOR" -ge 18 ] 2>/dev/null || fail "Node.js $(node -v) jest za stary — potrzeba wersji 18 lub nowszej (nodejs.org)."
@@ -98,8 +83,8 @@ command -v claude >/dev/null 2>&1 || fail "Brak Claude Code. W Terminalu wykonaj
 cd "$REPO_ROOT" || fail "Nie mogę wejść do katalogu projektu: $REPO_ROOT"
 
 # ── Instalacja / build przy pierwszym starcie lub po aktualizacji ──
-if [ ! -d node_modules ]; then
-  notify "Pierwsze uruchomienie — instaluję zależności (2-3 min)..."
+if [ ! -d node_modules ] || [ ! -d node_modules/electron ]; then
+  notify "Pierwsze uruchomienie — instaluję zależności (3-5 min)..."
   npm install --no-fund --no-audit >>"$LOG" 2>&1 || fail "npm install nie powiódł się. Szczegóły: ~/Library/Logs/Proba.log"
 fi
 if [ ! -d .next ] || [ -n "$(find src package.json -newer .next -print -quit 2>/dev/null)" ]; then
@@ -107,19 +92,11 @@ if [ ! -d .next ] || [ -n "$(find src package.json -newer .next -print -quit 2>/
   npm run build >>"$LOG" 2>&1 || fail "Build nie powiódł się. Szczegóły: ~/Library/Logs/Proba.log"
 fi
 
-# ── Start serwera w tle (odczepiony od launchera) ──
+# ── Wymaganie miękkie: ffmpeg włącza analizę wideo ──
+if ! command -v ffmpeg >/dev/null 2>&1; then
+  notify "Analiza wideo wyłączona — zainstaluj: brew install ffmpeg"
+fi
+
+# ── Start natywnego okna ──
 export CLAUDE_PROVIDER=cli
-nohup npx next start -p $PORT >>"$LOG" 2>&1 &
-disown
-
-# Poczekaj aż wstanie (max 30 s), potem otwórz przeglądarkę.
-for _ in $(seq 1 60); do
-  if curl -s --max-time 1 "$URL/api/provider" >/dev/null 2>&1; then
-    notify "Proba działa — tryb CLI (Twoja subskrypcja Claude)"
-    open "$URL"
-    exit 0
-  fi
-  sleep 0.5
-done
-
-fail "Serwer nie wstał w 30 sekund. Szczegóły: ~/Library/Logs/Proba.log"
+exec npx electron . >>"$LOG" 2>&1

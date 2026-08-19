@@ -11,7 +11,7 @@ export function isCliMode(): boolean {
   return process.env.CLAUDE_PROVIDER === 'cli'
 }
 
-const CLI_TIMEOUT_MS = 240_000
+const CLI_TIMEOUT_MS = 600_000
 
 export async function runClaudeCli(system: string, userText: string): Promise<string> {
   return new Promise((resolve, reject) => {

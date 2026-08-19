@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "electron": "CLAUDE_PROVIDER=cli electron .",
+    "desktop": "npm run build && npm run electron",
+    "desktop:dist": "npm run build && electron-builder --mac"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.3",
@@ -19,10 +22,34 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "electron": "^43.4.1",
     "eslint": "^8",
     "eslint-config-next": "14.2.35",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
+  },
+  "main": "electron/main.js",
+  "build": {
+    "appId": "app.proba.desktop",
+    "productName": "Proba",
+    "files": [
+      "electron/**/*",
+      ".next/**/*",
+      "public/**/*",
+      "package.json",
+      "next.config.mjs",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "Proba.app/Contents/Resources/Proba.icns",
+      "target": [
+        "dir"
+      ]
+    },
+    "directories": {
+      "output": "dist-desktop"
+    }
   }
 }
